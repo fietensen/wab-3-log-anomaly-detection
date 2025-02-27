@@ -1,6 +1,6 @@
 from pathlib import Path
 from torch.utils.data import TensorDataset, DataLoader, Dataset
-from autolog_processor import process_logfile, process_bgl_line, process_hdfs_line
+from util.autolog_preprocessor import process_logfile, process_bgl_line, process_hdfs_line
 
 import pandas as pd
 import os
