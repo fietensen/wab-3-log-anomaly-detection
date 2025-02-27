@@ -7,6 +7,7 @@ SET PY_INTERPRETER=
 echo [INFO] Discovering Python Interpreter
 if defined VIRTUAL_ENV (
     echo [INFO] Found active virtual environment
+    set "PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe"
     goto py_install_deps
 )
 
@@ -16,7 +17,7 @@ if %ERRORLEVEL%==0 (
     py -m venv .\venv
     if %ERRORLEVEL%==0 (
         call .\venv\Scripts\activate
-        SET PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe
+        SET "PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe"
         goto py_install_deps
     ) else (
         echo [WARN] Failed to set up virtual environment. Using standard Python installation.
@@ -31,7 +32,7 @@ if %ERRORLEVEL%==0 (
     py -m venv .\venv
     if %ERRORLEVEL%==0 (
         call .\venv\Scripts\activate
-        SET PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe
+        SET "PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe"
         goto py_install_deps
     ) else (
         echo [WARN] Failed to set up virtual environment. Using standard Python installation.
@@ -55,11 +56,19 @@ if %ERRORLEVEL%==0 (
     )
 )
 
+goto py_not_found
+
 REM -- INSTALL PYTHON DEPENDENCIES --
 :py_install_deps
 echo [INFO] Installing dependencies...
 if exist .\requirements.txt (
-    echo installing deps.
+    echo [INFO] Installing required python packages %PY_INTERPRETER%...
+    "%PY_INTERPRETER%" -m pip install -r .\requirements.txt
+    if %ERRORLEVEL%==0 (
+        echo [INFO] Installed packages successfully.
+    ) else (
+        goto py_package_fail
+    )
 ) else (
     echo [WARN] Found no requirements.txt, skipping installation. This might cause errors later on, if dependencies were not installed manually.
 )
@@ -102,6 +111,10 @@ goto quit
 
 :py_not_found
 echo [ERROR] No Python Interpreter was found. Quitting.
+goto quit
+
+:py_package_fail
+echo [ERROR] Failed to install python packages using PIP. Please check your internet connection and try again.
 goto quit
 
 :quit
