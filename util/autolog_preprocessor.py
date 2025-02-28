@@ -102,44 +102,6 @@ def _process_hdfs_line(line: str) -> tuple[str]:
     ])
 
 
-"""
-def _process_logfile(path: Path, line_processor: Callable, print_progress: bool = False, print_interval: int = 10_000) -> pd.DataFrame:
-    def process_batch(lines: list) -> list:
-        return [line_processor(line) for line in lines]
-
-    def log_generator(file_path: Path) -> Iterator[tuple]:
-        with open(file_path, "r", encoding="utf8") as fp:
-            for i, line in enumerate(fp):
-                if i % print_interval == 0 and print_progress:
-                    print(f"[INFO] Processed Log Lines: {i:,}\r", end="")
-                yield line_processor(line)
-        if print_progress:
-            print("\n[INFO] Processed Logfile")
-
-    chunk_size = 10000
-    df_list = []
-
-    batch = []
-    for i, parsed_line in enumerate(log_generator(path)):
-        batch.append(parsed_line)
-
-        if len(batch) >= chunk_size:
-            df_list.append(pd.DataFrame(batch, columns=[
-                           "anomalous", "log_entity", "timestamp", "message", "ext"]))
-            batch.clear()
-
-    # Final batch
-    if batch:
-        df_list.append(pd.DataFrame(batch, columns=[
-                       "anomalous", "log_entity", "timestamp", "message", "ext"]))
-
-    df = pd.concat(df_list, ignore_index=True).dropna()
-    df["log_entity"] = df["log_entity"].astype(str)
-
-    return df
-"""
-
-
 def _process_batch(lines: list, line_processor: Callable) -> list:
     return [line_processor(line) for line in lines]
 
@@ -177,19 +139,15 @@ def _process_logfile(path: Path, line_processor: Callable, print_progress: bool 
                        "anomalous", "log_entity", "timestamp", "message", "ext"]))
 
     df = pd.concat(df_list, ignore_index=True).dropna()
+    df.index.name = "index"
     df["log_entity"] = df["log_entity"].astype(str)
 
     return df
 
 
 def _set_hdfs_labels(df: pd.DataFrame, label_file: Path) -> None:
-    an_labels = pd.read_csv(label_file)
-    df["anomalous"] = df.map(
-        lambda idx: an_labels[
-            an_labels["BlockId"] == df.iloc[idx]["ext"]
-        ].values[0] == "Anomaly"
-    )
-
+    an = pd.read_csv(label_file).set_index("BlockId").to_dict()["Label"]
+    df["anomalous"] = df["ext"].map(lambda blk_id: an[blk_id] == "Anomaly")
 
 def prepare_hdfs(hdfs_dataset_path: Path) -> None:
     hdfs_log_file = hdfs_dataset_path / "HDFS.log"
@@ -199,7 +157,7 @@ def prepare_hdfs(hdfs_dataset_path: Path) -> None:
     parsed = None
 
     if os.path.isfile(hdfs_log_parsed):
-        print("[*] Loading cached preprocessed file from " + hdfs_log_parsed)
+        print("[*] Loading cached preprocessed file from " + str(hdfs_log_parsed))
         parsed = pd.read_csv(hdfs_log_parsed)
 
     else:
@@ -208,10 +166,10 @@ def prepare_hdfs(hdfs_dataset_path: Path) -> None:
             line_processor=_process_hdfs_line,
             print_progress=True
         )
-        print("[*] Setting labels")
-        parsed.to_csv(hdfs_log_parsed)
+        print("[INFO] Setting labels")
         _set_hdfs_labels(parsed, hdfs_label_file)
-        print("[*] Caching progress to " + hdfs_log_parsed)
+        print("[INFO] Caching progress to " + str(hdfs_log_parsed))
+        del parsed["ext"]
         parsed.to_csv(hdfs_log_parsed)
 
     print(parsed.head())
@@ -224,7 +182,7 @@ def prepare_bgl(bgl_dataset_path: Path) -> None:
     parsed = None
 
     if os.path.isfile(bgl_log_parsed):
-        print("[*] Loading cached preprocessed file from " + bgl_log_parsed)
+        print("[INFO] Loading cached preprocessed file from " + str(bgl_log_parsed))
         parsed = pd.read_csv(bgl_log_parsed)
 
     else:
@@ -233,7 +191,8 @@ def prepare_bgl(bgl_dataset_path: Path) -> None:
             line_processor=_process_bgl_line,
             print_progress=True
         )
-        print("[*] Caching progress to " + bgl_log_parsed)
+        print("[INFO] Caching progress to " + str(bgl_log_parsed))
+        del parsed["ext"]
         parsed.to_csv(bgl_log_parsed)
 
     print(parsed.head())
