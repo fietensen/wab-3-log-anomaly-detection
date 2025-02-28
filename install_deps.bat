@@ -7,7 +7,7 @@ SET PY_INTERPRETER=
 echo [INFO] Discovering Python Interpreter
 if defined VIRTUAL_ENV (
     echo [INFO] Found active virtual environment
-    set "PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe"
+    set PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe
     goto py_install_deps
 )
 
@@ -16,7 +16,8 @@ if %ERRORLEVEL%==0 (
     echo [INFO] Found python launcher. Setting up virtual environment.
     py -m venv .\venv
     if %ERRORLEVEL%==0 (
-        SET PY_INTERPRETER=.\venv\Scripts\python.exe
+        call .\venv\Scripts\activate
+        SET PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe
         goto py_install_deps
     ) else (
         echo [WARN] Failed to set up virtual environment. Using standard Python installation.
@@ -30,7 +31,8 @@ if %ERRORLEVEL%==0 (
     echo [INFO] Found python installation. Setting up virtual environment.
     py -m venv .\venv
     if %ERRORLEVEL%==0 (
-        SET PY_INTERPRETER=.\venv\Scripts\python.exe
+        call .\venv\Scripts\activate
+        SET PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe
         goto py_install_deps
     ) else (
         echo [WARN] Failed to set up virtual environment. Using standard Python installation.
@@ -44,7 +46,8 @@ if %ERRORLEVEL%==0 (
     echo [INFO] Found python installation. Setting up virtual environment.
     py -m venv .\venv
     if %ERRORLEVEL%==0 (
-        SET PY_INTERPRETER=.\venv\Scripts\python.exe
+        call .\venv\Scripts\activate
+        SET PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe
         goto py_install_deps
     ) else (
         echo [WARN] Failed to set up virtual environment. Using standard Python installation.
