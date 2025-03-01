@@ -214,7 +214,8 @@ def mk_chunks_vectorizers(df: pd.DataFrame, time_interval: int = 10) -> tuple[di
     norm_df = df[df["anomalous"] == False]
     anom_df = df[df["anomalous"] == True]
 
-    for le_name, gdf in norm_df.groupby("log_entity"):
+    #for le_name, gdf in norm_df.groupby("log_entity"):
+    for le_name, gdf in df.groupby("log_entity"):
         le_vectorizers[le_name].fit([" ".join(gdf["message"].values)])
 
     return le_vectorizers, norm_df, anom_df
@@ -236,9 +237,9 @@ def calc_term_entropies(vectorizer: CountVectorizer, le_messages: pd.Series, M: 
 def calc_chunk_scores(vectorizer: CountVectorizer, entropies: np.array, chunks: list[str]) -> np.array:
     sp_mat = vectorizer.transform(chunks)
     sp_mat.data = np.log2(1 + sp_mat.data)
-    sp_mat = sp_mat.multiply(entropies).power(2).sum(axis=1).flatten()
+    sp_mat = sp_mat.multiply(entropies).power(2).sum(axis=1)
 
-    chunk_scores = np.sqrt(sp_mat)
+    chunk_scores = np.array(np.sqrt(sp_mat)).flatten()
 
     return chunk_scores
 
