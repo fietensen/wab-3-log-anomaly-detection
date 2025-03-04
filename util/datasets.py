@@ -3,7 +3,6 @@ from torch.utils.data import TensorDataset, DataLoader, Dataset
 from util.autolog_preprocessor import process_logfile, process_bgl_line, process_hdfs_line
 
 import pandas as pd
-import os
 
 
 def read_datasets_make_dataloader(bgl_path: Path, hdfs_path: Path, /, bgl_batch_size: int = 32, hdfs_batch_size: int = 32) -> dict[str, DataLoader]:
@@ -18,36 +17,27 @@ def read_datasets_make_dataloader(bgl_path: Path, hdfs_path: Path, /, bgl_batch_
         (optional) hdfs_batch_size (int): Batch size to use in the DataLoader for the HDFS Dataset
     """
 
-    bgl_dataset = _read_transform_bgl(bgl_path)
-    hdfs_dataset = _read_transform_bgl(hdfs_path)
+    al_bgl_dataset, cldt_bgl_dataset = _read_transform_bgl(bgl_path)
+    al_hdfs_dataset, cldt_hdfs_dataset = _read_transform_bgl(hdfs_path)
 
     return {
-        "bgl": DataLoader(bgl_dataset, batch_size=bgl_batch_size, pin_memory=True),
-        "hdfs": DataLoader(hdfs_dataset, batch_size=hdfs_batch_size, pin_memory=True)
+        "autolog": {
+            "bgl": DataLoader(al_bgl_dataset, batch_size=bgl_batch_size, pin_memory=True),
+            "hdfs": DataLoader(al_hdfs_dataset, batch_size=hdfs_batch_size, pin_memory=True)
+        },
+        "cldtlog": {
+            "bgl": DataLoader(cldt_bgl_dataset, batch_size=bgl_batch_size, pin_memory=True),
+            "hdfs": DataLoader(cldt_hdfs_dataset, batch_size=hdfs_batch_size, pin_memory=True)
+        }
     }
 
 
 def _read_transform_bgl(bgl_path: Path) -> Dataset:
     "Reads the BG/L Dataset from the specified directory"
 
-    bgl_log_file = bgl_path / "BGL.log"
-    bgl_log_parsed = bgl_path / "BGL.prep.csv"
+    bgl_log_file = bgl_path / "preprocessed.al.csv"
 
-    parsed = None
-
-    if os.path.isfile(bgl_log_parsed):
-        print("[*] Loading cached preprocessed file from " + bgl_log_parsed)
-        parsed = pd.read_csv(bgl_log_parsed)
-
-    else:
-        parsed = process_logfile(
-            bgl_log_file,
-            line_processor=process_bgl_line,
-            print_progress=True
-        )
-        parsed.to_csv(bgl_log_parsed)
-
-    print(parsed.head())
+    return None, None
 
 
 if __name__ == '__main__':

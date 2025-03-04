@@ -7,7 +7,7 @@ SET PY_INTERPRETER=
 echo [INFO] Discovering Python Interpreter
 if defined VIRTUAL_ENV (
     echo [INFO] Found active virtual environment
-    set PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe
+    set "PY_INTERPRETER=.\venv\Scripts\python.exe"
     goto py_install_deps
 )
 
@@ -17,11 +17,11 @@ if %ERRORLEVEL%==0 (
     py -m venv .\venv
     if %ERRORLEVEL%==0 (
         call .\venv\Scripts\activate
-        SET PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe
+        SET "PY_INTERPRETER=.\venv\Scripts\python.exe"
         goto py_install_deps
     ) else (
         echo [WARN] Failed to set up virtual environment. Using standard Python installation.
-        SET PY_INTERPRETER=py
+        SET "PY_INTERPRETER=py"
         goto py_install_deps
     )
 )
@@ -32,11 +32,11 @@ if %ERRORLEVEL%==0 (
     py -m venv .\venv
     if %ERRORLEVEL%==0 (
         call .\venv\Scripts\activate
-        SET PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe
+        SET "PY_INTERPRETER=.\venv\Scripts\python.exe"
         goto py_install_deps
     ) else (
         echo [WARN] Failed to set up virtual environment. Using standard Python installation.
-        SET PY_INTERPRETER=python
+        SET "PY_INTERPRETER=python"
         goto py_install_deps
     )
 )
@@ -47,11 +47,11 @@ if %ERRORLEVEL%==0 (
     py -m venv .\venv
     if %ERRORLEVEL%==0 (
         call .\venv\Scripts\activate
-        SET PY_INTERPRETER=%VIRTUAL_ENV%\Scripts\python.exe
+        SET "PY_INTERPRETER=.\venv\Scripts\python.exe"
         goto py_install_deps
     ) else (
         echo [WARN] Failed to set up virtual environment. Using standard Python installation.
-        SET PY_INTERPRETER=python3
+        SET "PY_INTERPRETER=python3"
         goto py_install_deps
     )
 )
@@ -62,7 +62,7 @@ REM -- INSTALL PYTHON DEPENDENCIES --
 :py_install_deps
 echo [INFO] Installing dependencies...
 if exist .\requirements.txt (
-    echo [INFO] Installing required python packages %PY_INTERPRETER%...
+    echo [INFO] Installing required python packages using %PY_INTERPRETER%...
     "%PY_INTERPRETER%" -m pip install -r .\requirements.txt
     if %ERRORLEVEL%==0 (
         echo [INFO] Installed packages successfully.
@@ -90,7 +90,8 @@ if %ERRORLEVEL%==0 (
         echo [WARN] Failed to unzip ".\datasets\BGL.zip". Please extract to ".\datasets\BGL" manually.
     )
 ) else (
-    echo [WARN] Failed to install "Blue Gene/L supercomputer log". Please install and unzip the dataset manually from the following repository: https://github.com/logpai/loghub/tree/master
+    echo [ERROR] Failed to install "Blue Gene/L supercomputer log". Please install and unzip the dataset manually from the following repository: https://github.com/logpai/loghub/tree/master
+    goto quit
 )
 
 REM 
@@ -103,10 +104,17 @@ if %ERRORLEVEL%==0 (
     ) else (
         echo [WARN] Failed to unzip ".\datasets\HDFS_v1.zip". Please extract to ".\datasets\HDFS_v1" manually.
     )
+    goto preprocess_datasets
 ) else (
-    echo [WARN] Failed to install "Hadoop distributed file system log". Please install and unzip the dataset manually from the following repository: https://github.com/logpai/loghub/tree/master
+    echo [ERROR] Failed to install "Hadoop distributed file system log". Please install and unzip the dataset manually from the following repository: https://github.com/logpai/loghub/tree/master
+    goto quit
 )
 
+goto preprocess_datasets
+
+:preprocess_datasets
+echo [INFO] Preprocessing datasets. Time to go get a coffee or tea, this might take a while..
+"%PY_INTERPRETER%" -c "from util.preprocess import main; main();"
 goto quit
 
 :py_not_found

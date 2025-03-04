@@ -91,7 +91,7 @@ def _process_hdfs_line(line: str) -> tuple[str]:
         proc[0], "%y%m%d %H%M%S"
     )
 
-    le = proc[1] + "-" + proc[2] # TODO: Should this use the PID?
+    le = proc[2]# proc[1] + "-" + proc[2] # TODO: Should this use the PID?
     cont_parsed = pu.format_text(proc[3])
     blk_id = HDFS_BLK_RE.match(proc[3])
     if not blk_id:
@@ -214,7 +214,6 @@ def mk_chunks_vectorizers(df: pd.DataFrame, time_interval: int = 10) -> tuple[di
     norm_df = df[df["anomalous"] == False]
     anom_df = df[df["anomalous"] == True]
 
-    #for le_name, gdf in norm_df.groupby("log_entity"):
     for le_name, gdf in df.groupby("log_entity"):
         le_vectorizers[le_name].fit([" ".join(gdf["message"].values)])
 
