@@ -125,7 +125,7 @@ class AutoLogAutoencoder(nn.Module):
                 val_mse = np.mean(np.power(y.numpy() - self.__datasets["val"].numpy(), 2), axis=1)
                 self.__threshold = np.percentile(val_mse, 90)
                 
-                print(f"[INFO] Epoch {epoch+1}/{epochs} | Train Loss: {train_loss/train_batches} | Val Loss: {val_mse.sum()/len(val_mse)} | Threshold: {self.__threshold}")
+                print(f"[INFO] Epoch {epoch+1}/{epochs} | Train Loss: {train_loss/train_batches:.4} | Val Loss: {val_mse.sum()/len(val_mse):.4} | Threshold: {self.__threshold:.4}")
 
 
 if __name__ == '__main__':
