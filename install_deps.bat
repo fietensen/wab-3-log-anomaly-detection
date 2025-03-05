@@ -94,7 +94,7 @@ if %ERRORLEVEL%==0 (
     goto quit
 )
 
-REM 
+REM HDFS Dataset
 curl --output ".\datasets\HDFS_v1.zip" "https://zenodo.org/records/8196385/files/HDFS_v1.zip?download=1" --fail
 if %ERRORLEVEL%==0 (
     REM unzip using powershell
@@ -104,11 +104,13 @@ if %ERRORLEVEL%==0 (
     ) else (
         echo [WARN] Failed to unzip ".\datasets\HDFS_v1.zip". Please extract to ".\datasets\HDFS_v1" manually.
     )
-    goto preprocess_datasets
 ) else (
     echo [ERROR] Failed to install "Hadoop distributed file system log". Please install and unzip the dataset manually from the following repository: https://github.com/logpai/loghub/tree/master
     goto quit
 )
+
+REM Pretrained BERT Model
+"%PY_INTERPRETER%" .\util\install_pretrained.py
 
 goto preprocess_datasets
 

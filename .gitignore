@@ -173,3 +173,5 @@ cython_debug/
 # Project specific
 datasets
 _*.*
+bert_base_uncased_hf_model
+bert_base_uncased_hf_tokenizer
