@@ -1,11 +1,7 @@
 from pathlib import Path
 from torch.optim import RMSprop
 
-# TODO: Temporary, remove later
-from torch.utils.data import DataLoader, TensorDataset
-from sklearn.preprocessing import MinMaxScaler
-
-import pandas as pd
+import numpy as np
 import torch.nn.init as init
 import torch.nn as nn
 import torch
@@ -73,22 +69,28 @@ class _AutoLogDecoder(nn.Module):
 
 
 class AutoLogAutoencoder(nn.Module):
-    def __init__(self, N: int) -> None:
+    def __init__(self, N: int, datasets: dict) -> None:
         super().__init__()
         # TODO: Add seed option (for numpy / pytorch)
 
         self.__encoder = _AutoLogEncoder(N)
         self.__decoder = _AutoLogDecoder(N)
+        self.__datasets = datasets
+        self.__threshold = 0
 
-    def classify(self, x: torch.Tensor) -> torch.Tensor:
+        self.apply(initialize_weights)
+
+
+    def classify(self, x: torch.Tensor) -> bool:
         "Classifies input as either normative (0) or anomalous (1)"
 
         self.eval()
 
         with torch.no_grad():
-            y = self(x)
-            # TODO: Compute RE and use Threshold to decide
-            return torch.tensor((1, 4), dtype=torch.float32)
+            y,_ = self(x)
+            val_mse = np.mean(np.power(y.numpy() - x.numpy(), 2), axis=1)
+            return val_mse>self.__threshold
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         latent, l1_loss = self.__encoder(x)
@@ -96,65 +98,35 @@ class AutoLogAutoencoder(nn.Module):
 
         return reconstruction, l1_loss
 
-"""
-# TODO: Replace by something that isn't horrible :)
-def mk_classifier(dataset_path: Path, n_epochs: int, model_out_path: Path, feature_names: list[str]) -> AutoLogAutoencoder:
-    ae = AutoLogAutoencoder(len(feature_names))
-    ae.apply(initialize_weights)
-    df = pd.read_csv(dataset_path)
-    df_norm = df[df["anomalous"] == False]
-    df_anom = df[df["anomalous"] == True]
+    def train_batch(self, epochs: int = 50):
+        print("[INFO] Starting training for {} epochs".format(epochs))
+        optim = RMSprop(self.parameters())
+        loss_fn = nn.MSELoss()
 
-    scaler = MinMaxScaler()
-    x_train = scaler.fit_transform(df_norm[feature_names].to_numpy())
+        train_batches = len(self.__datasets["train"])
 
-    ds_data = torch.tensor(x_train, dtype=torch.float32)
-    dataset = TensorDataset(ds_data)
+        for epoch in range(epochs):
+            self.train()
+            train_loss = 0
 
-    dataloader = DataLoader(dataset, batch_size=2048, shuffle=True)
+            for (batch_x,) in self.__datasets["train"]:
+                y, l1_loss = self(batch_x)
+                loss = loss_fn(y, batch_x) + l1_loss
 
-    optim = RMSprop(ae.parameters(), lr=0.001)
-    loss_fn = nn.MSELoss()
-    
-    ae.eval()
-    # evaluate
-    with torch.no_grad():
-        n_iter = len(dataset)
-        loss_total = 0
-        for (x,) in dataloader:
-            y, l1_loss = ae.forward(x)
-            loss = l1_loss + loss_fn(y, x)
-            loss_total += loss.item()
-            
-        print("Loss:", loss_total/n_iter)
+                optim.zero_grad()
+                loss.backward()
+                optim.step()
 
-    for epoch in range(n_epochs):
-        ae.train()
-        print("Epoch", epoch)
-
-        # paper doesn't seem to batch inputs
-        for (x,) in dataloader:
-            y, l1_loss = ae.forward(x)
-            loss = l1_loss + loss_fn(y, x)
-            
-            optim.zero_grad()
-            loss.backward()
-            optim.step()
+                train_loss += loss.mean().item()
         
-        ae.eval()
-        # evaluate
-        with torch.no_grad():
-            n_iter = len(dataset)
-            loss_total = 0
-            for (x,) in dataloader:
-                y, l1_loss = ae.forward(x)
-                loss = l1_loss + loss_fn(y, x)
-                loss_total += loss.item()
-            
-            print("Loss:", loss_total/n_iter)
+            self.eval()
+            with torch.no_grad():
+                y, l1_loss = self(self.__datasets["val"])
+                val_mse = np.mean(np.power(y.numpy() - self.__datasets["val"].numpy(), 2), axis=1)
+                self.__threshold = np.percentile(val_mse, 90)
+                
+                print(f"[INFO] Epoch {epoch+1}/{epochs} | Train Loss: {train_loss/train_batches} | Val Loss: {val_mse.sum()/len(val_mse)} | Threshold: {self.__threshold}")
 
-    return ae
-"""
 
 if __name__ == '__main__':
     print("This file is not meant to be run as a script.")
