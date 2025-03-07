@@ -16,16 +16,17 @@ def process_line(text: str, regex: re.Pattern, sel_groups: list[int] | None = No
     return tuple([groups[i] for i in sel_groups])
 
 
-def format_text(text: str, allowed_specials: list[str] = []) -> str:
+def format_text(text: str, allowed_specials: list[str] = [], include_digits: bool = True, to_lowercase=True) -> str:
     res_string: str = ""
 
-    for char in text.lower().strip():
-        if not char in list(" " + string.ascii_lowercase + string.digits) + allowed_specials:
+    for char in text.lower().strip() if to_lowercase else text.strip():
+        if not char in list(" " + string.ascii_letters + (string.digits if include_digits else "")) + allowed_specials:
+            res_string += " "
             continue
 
         res_string += char
 
-    return res_string
+    return " ".join(filter(lambda v:v, res_string.split(" ")))
 
 
 if __name__ == '__main__':
