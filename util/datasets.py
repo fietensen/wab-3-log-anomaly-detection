@@ -2,10 +2,12 @@ from pathlib import Path
 from torch.utils.data import TensorDataset, DataLoader, Dataset
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
+from util.tripletdatset import TripletDataset, TripletBatchSampler
 
 import pandas as pd
 import numpy as np
 import torch
+import h5py
 
 
 def read_datasets_make_dataloader(bgl_path: Path, hdfs_path: Path, *, bgl_batch_size: int = 32, hdfs_batch_size: int = 32) -> dict[str, dict]:
@@ -20,8 +22,10 @@ def read_datasets_make_dataloader(bgl_path: Path, hdfs_path: Path, *, bgl_batch_
         (optional) hdfs_batch_size (int): Batch size to use in the DataLoader for the HDFS Dataset
     """
 
-    (al_bgl_train, al_bgl_val, al_bgl_test_norm, al_bgl_test_anom), cldt_bgl_dataset = _read_transform_bgl(bgl_path)
-    (al_hdfs_train, al_hdfs_val, al_hdfs_test_norm, al_hdfs_test_anom), cldt_hdfs_dataset = _read_transform_hdfs(hdfs_path)
+    (al_bgl_train, al_bgl_val, al_bgl_test_norm, al_bgl_test_anom) = _read_transform_al_bgl(bgl_path)
+    (al_hdfs_train, al_hdfs_val, al_hdfs_test_norm, al_hdfs_test_anom) = _read_transform_al_hdfs(hdfs_path)
+
+    (cldt_bgl_train, ) = _read_transform_cldt_bgl(bgl_path)
 
     return {
         "autolog": {
@@ -38,14 +42,48 @@ def read_datasets_make_dataloader(bgl_path: Path, hdfs_path: Path, *, bgl_batch_
                 "test_anomalous": al_hdfs_test_anom
             }
         },
-        #"cldtlog": {
-        #    "bgl": DataLoader(cldt_bgl_dataset, batch_size=bgl_batch_size, pin_memory=True),
+        "cldtlog": {
+            "bgl": cldt_bgl_train,
         #    "hdfs": DataLoader(cldt_hdfs_dataset, batch_size=hdfs_batch_size, pin_memory=True)
-        #}
+        }
     }
 
 
-def _read_transform_bgl(bgl_path: Path) -> Dataset:
+def _read_transform_cldt_bgl(bgl_path: Path, device: torch.device = torch.device("cpu")) -> tuple[DataLoader]:
+    "Reads the BG/L Dataset from the specified directory"
+
+    bgl_dataset_preprocessed = bgl_path / "preprocessed.cldt.h5"
+
+    with h5py.File(bgl_dataset_preprocessed, "r") as fp:
+        norm_iids = torch.tensor(np.array(fp["data"]["normative"]["input_ids"][:512], dtype=np.uint16)).to(device, dtype=torch.uint16)
+        norm_ams = torch.tensor(np.array(fp["data"]["normative"]["attention_mask"][:512], dtype=np.uint8)).to(device, dtype=torch.uint8)
+        norm_labels = torch.zeros((norm_iids.shape[0], 1)).to(device, dtype=torch.uint8)
+
+        anom_iids = torch.tensor(np.array(fp["data"]["anomalous"]["input_ids"][:512], dtype=np.uint16)).to(device, dtype=torch.uint16)
+        anom_ams = torch.tensor(np.array(fp["data"]["anomalous"]["attention_mask"][:512], dtype=np.uint8)).to(device, dtype=torch.uint8)
+        anom_labels = torch.ones((anom_iids.shape[0], 1)).to(device, dtype=torch.uint8)
+
+    # TODO: introduce train, val, test split
+    ds_iids = torch.vstack((norm_iids, anom_iids))
+    del norm_iids
+    del anom_iids
+
+    ds_ams = torch.vstack((norm_ams, anom_ams))
+    del norm_ams
+    del anom_ams
+
+    ds_lbls = torch.vstack((norm_labels, anom_labels))
+    del norm_labels
+    del anom_labels
+
+    dataset = TripletDataset(ds_iids, ds_ams, ds_lbls)
+    sampler = TripletBatchSampler(dataset, 32)
+    dataloader = DataLoader(dataset, batch_sampler=sampler)#, pin_memory=True)
+
+    return (dataloader,)
+
+
+def _read_transform_al_bgl(bgl_path: Path) -> tuple[Dataset, torch.Tensor, torch.Tensor, torch.Tensor]:
     "Reads the BG/L Dataset from the specified directory"
 
     bgl_dataset_preprocessed = bgl_path / "preprocessed.al.csv"
@@ -66,9 +104,10 @@ def _read_transform_bgl(bgl_path: Path) -> Dataset:
     x_test_norm = torch.tensor(scaler.transform(x_test), dtype=torch.float32)
     x_test_anom = torch.tensor(scaler.transform(bgl_df_anom), dtype=torch.float32)
 
-    return (TensorDataset(x_train), x_val, x_test_norm, x_test_anom), (None, None, None)
+    return (TensorDataset(x_train), x_val, x_test_norm, x_test_anom)
 
-def _read_transform_hdfs(hdfs_path: Path) -> Dataset:
+
+def _read_transform_al_hdfs(hdfs_path: Path) -> tuple[Dataset, torch.Tensor, torch.Tensor, torch.Tensor]:
     "Reads the HDFS Dataset from the specified directory"
 
     hdfs_dataset_preprocessed = hdfs_path / "preprocessed.al.csv"
@@ -89,7 +128,7 @@ def _read_transform_hdfs(hdfs_path: Path) -> Dataset:
     x_test_norm = torch.tensor(scaler.transform(x_test), dtype=torch.float32)
     x_test_anom = torch.tensor(scaler.transform(hdfs_df_anom), dtype=torch.float32)
 
-    return (TensorDataset(x_train), x_val, x_test_norm, x_test_anom), (None, None, None)
+    return (TensorDataset(x_train), x_val, x_test_norm, x_test_anom)
 
 
 if __name__ == '__main__':

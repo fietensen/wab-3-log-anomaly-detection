@@ -161,6 +161,8 @@ def prepare_hdfs(hdfs_dataset_path: Path) -> None:
     return parsed
 """
 
+# TODO: remove import
+import random
 def prepare_bgl(bgl_dataset_path: Path, window_size: int = 5, window_step: int = 2) -> tuple[list[str], list[bool]]:
     bgl_log_file = bgl_dataset_path / "BGL.log"
     bgl_log_parsed = bgl_dataset_path / "BGL.prep.cldt.csv"
@@ -191,6 +193,10 @@ def prepare_bgl(bgl_dataset_path: Path, window_size: int = 5, window_step: int =
         messages.append(" ".join(window["message"].values))
         labels.append(window["anomalous"].any())
 
+    mlpairs = list(zip(messages, labels))
+    random.shuffle(mlpairs)
+    messages, labels = list(zip(*mlpairs))
+
     return messages, labels
 
 
@@ -200,22 +206,38 @@ def load_tokenizer(path: Path):
 
 def create_h5_file(output_file: Path):
     with h5py.File(output_file, "w") as f:
-        f.create_dataset("input_ids", (0, 512), maxshape=(None, 512), dtype="uint16", chunks=True)
-        f.create_dataset("attention_mask", (0, 512), maxshape=(None, 512), dtype="uint8", chunks=True)
-        f.create_dataset("labels", (0,), maxshape=(None,), dtype="uint8", chunks=True)
+        f.create_dataset("/data/normative/input_ids", (0, 50), maxshape=(None, 50), dtype="uint16", chunks=True)
+        f.create_dataset("/data/normative/attention_mask", (0, 50), maxshape=(None, 50), dtype="uint8", chunks=True)
+        
+        f.create_dataset("/data/anomalous/input_ids", (0, 50), maxshape=(None, 50), dtype="uint16", chunks=True)
+        f.create_dataset("/data/anomalous/attention_mask", (0, 50), maxshape=(None, 50), dtype="uint8", chunks=True)
 
 
 def append_to_h5(input_ids: np.array, attention_mask: np.array, labels: np.array, output_file: Path):
     with h5py.File(output_file, "a") as f:
-        new_size = f["input_ids"].shape[0] + input_ids.shape[0]
+        norm_input_ids = input_ids[~labels]
+        norm_attention_mask = attention_mask[~labels]
 
-        f["input_ids"].resize((new_size, 512))
-        f["attention_mask"].resize((new_size, 512))
-        f["labels"].resize((new_size,))
+        anom_input_ids = input_ids[labels]
+        anom_attention_mask = attention_mask[labels]
 
-        f["input_ids"][-input_ids.shape[0]:] = input_ids
-        f["attention_mask"][-attention_mask.shape[0]:] = attention_mask
-        f["labels"][-labels.shape[0]:] = labels
+        new_size_norm = f["/data/normative/input_ids"].shape[0] + norm_input_ids.shape[0]
+        new_size_anom = f["/data/anomalous/input_ids"].shape[0] + anom_input_ids.shape[0]
+
+        if (~labels).any():
+            f["/data/normative/input_ids"].resize((new_size_norm, 50))
+            f["/data/normative/attention_mask"].resize((new_size_norm, 50))
+
+            f["/data/normative/input_ids"][-norm_input_ids.shape[0]:] = norm_input_ids
+            f["/data/normative/attention_mask"][-norm_attention_mask.shape[0]:] = norm_attention_mask
+
+
+        if (labels).any():
+            f["/data/anomalous/input_ids"].resize((new_size_anom, 50))
+            f["/data/anomalous/attention_mask"].resize((new_size_anom, 50))
+
+            f["/data/anomalous/input_ids"][-anom_input_ids.shape[0]:] = anom_input_ids
+            f["/data/anomalous/attention_mask"][-anom_attention_mask.shape[0]:] = anom_attention_mask
 
 
 def create_tokenize_message_dataset(messages: list[str], labels: list[bool], h5_file_path: Path, tokenizer_path: Path, batch_size: int = 10_000):
@@ -226,10 +248,10 @@ def create_tokenize_message_dataset(messages: list[str], labels: list[bool], h5_
         chunk_messages = messages[i : i + batch_size]
         chunk_labels = labels[i : i + batch_size]
 
-        chunk_tokenized = tokenizer(chunk_messages, return_tensors="np", truncation=True, max_length=512, padding="max_length")
+        chunk_tokenized = tokenizer(chunk_messages, return_tensors="np", truncation=True, max_length=50, padding="max_length")
         chunk_input_ids = chunk_tokenized["input_ids"]
         chunk_attention_mask = chunk_tokenized["attention_mask"]
-        append_to_h5(chunk_input_ids, chunk_attention_mask, np.array(chunk_labels, dtype=np.uint8), h5_file_path)
+        append_to_h5(chunk_input_ids, chunk_attention_mask, np.array(chunk_labels, dtype=bool), h5_file_path)
 
 
 if __name__ == '__main__':
