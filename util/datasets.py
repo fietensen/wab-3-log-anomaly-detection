@@ -25,7 +25,9 @@ def read_datasets_make_dataloader(bgl_path: Path, hdfs_path: Path, *, bgl_batch_
     (al_bgl_train, al_bgl_val, al_bgl_test_norm, al_bgl_test_anom) = _read_transform_al_bgl(bgl_path)
     (al_hdfs_train, al_hdfs_val, al_hdfs_test_norm, al_hdfs_test_anom) = _read_transform_al_hdfs(hdfs_path)
 
-    (cldt_bgl_train, ) = _read_transform_cldt_bgl(bgl_path)
+    # determine device based on cuda presence
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    (cldt_bgl_train, cldt_bgl_val, cldt_bgl_test_norm, cldt_bgl_test_anom) = _read_transform_cldt_bgl(bgl_path, device=device)
 
     return {
         "autolog": {
@@ -43,7 +45,12 @@ def read_datasets_make_dataloader(bgl_path: Path, hdfs_path: Path, *, bgl_batch_
             }
         },
         "cldtlog": {
-            "bgl": cldt_bgl_train,
+            "bgl": {
+                "train": cldt_bgl_train,
+                "val": cldt_bgl_val,
+                "test_normal": cldt_bgl_test_norm,
+                "test_anomalous": cldt_bgl_test_anom
+            }
         #    "hdfs": DataLoader(cldt_hdfs_dataset, batch_size=hdfs_batch_size, pin_memory=True)
         }
     }
@@ -55,32 +62,68 @@ def _read_transform_cldt_bgl(bgl_path: Path, device: torch.device = torch.device
     bgl_dataset_preprocessed = bgl_path / "preprocessed.cldt.h5"
 
     with h5py.File(bgl_dataset_preprocessed, "r") as fp:
-        norm_iids = torch.tensor(np.array(fp["data"]["normative"]["input_ids"][:512], dtype=np.uint16)).to(device, dtype=torch.uint16)
-        norm_ams = torch.tensor(np.array(fp["data"]["normative"]["attention_mask"][:512], dtype=np.uint8)).to(device, dtype=torch.uint8)
-        norm_labels = torch.zeros((norm_iids.shape[0], 1)).to(device, dtype=torch.uint8)
+        norm_iids = np.array(fp["data"]["normative"]["input_ids"][:1450], dtype=np.uint16)
+        norm_ams = np.array(fp["data"]["normative"]["attention_mask"][:1450], dtype=np.uint8)
 
-        anom_iids = torch.tensor(np.array(fp["data"]["anomalous"]["input_ids"][:512], dtype=np.uint16)).to(device, dtype=torch.uint16)
-        anom_ams = torch.tensor(np.array(fp["data"]["anomalous"]["attention_mask"][:512], dtype=np.uint8)).to(device, dtype=torch.uint8)
-        anom_labels = torch.ones((anom_iids.shape[0], 1)).to(device, dtype=torch.uint8)
+        anom_iids = np.array(fp["data"]["anomalous"]["input_ids"][:1450], dtype=np.uint16)
+        anom_ams = np.array(fp["data"]["anomalous"]["attention_mask"][:1450], dtype=np.uint8)
 
-    # TODO: introduce train, val, test split
-    ds_iids = torch.vstack((norm_iids, anom_iids))
-    del norm_iids
-    del anom_iids
+    # Distribution: Train: 60% | Val: 20% | Test: 20%
+    tsplit_norm_iids, test_norm_iids, tsplit_norm_ams, test_norm_ams = train_test_split(norm_iids, norm_ams, test_size=0.2)
+    train_norm_iids, val_norm_iids, train_norm_ams, val_norm_ams = train_test_split(tsplit_norm_iids, tsplit_norm_ams, test_size=0.25)
 
-    ds_ams = torch.vstack((norm_ams, anom_ams))
-    del norm_ams
-    del anom_ams
+    tsplit_anom_iids, test_anom_iids, tsplit_anom_ams, test_anom_ams = train_test_split(anom_iids, anom_ams, test_size=0.2)
+    train_anom_iids, val_anom_iids, train_anom_ams, val_anom_ams = train_test_split(tsplit_anom_iids, tsplit_anom_ams, test_size=0.25)
 
-    ds_lbls = torch.vstack((norm_labels, anom_labels))
-    del norm_labels
-    del anom_labels
+    train_iids = torch.vstack((
+        torch.tensor(train_norm_iids).to(device, dtype=torch.uint16),
+        torch.tensor(train_anom_iids).to(device, dtype=torch.uint16),
+    ))
 
-    dataset = TripletDataset(ds_iids, ds_ams, ds_lbls)
-    sampler = TripletBatchSampler(dataset, 32)
-    dataloader = DataLoader(dataset, batch_sampler=sampler)#, pin_memory=True)
+    train_ams = torch.vstack((
+        torch.tensor(train_norm_ams).to(device, dtype=torch.uint8),
+        torch.tensor(train_anom_ams).to(device, dtype=torch.uint8)
+    ))
 
-    return (dataloader,)
+    train_labels = torch.vstack((
+        torch.zeros((train_norm_iids.shape[0], 1), device=device, dtype=torch.uint8),
+        torch.ones((train_anom_iids.shape[0], 1), device=device, dtype=torch.uint8),
+    ))
+
+    val_iids = torch.vstack((
+        torch.tensor(val_norm_iids).to(device, dtype=torch.uint16),
+        torch.tensor(val_anom_iids).to(device, dtype=torch.uint16)
+    ))
+
+    val_ams = torch.vstack((
+        torch.tensor(val_norm_ams).to(device, dtype=torch.uint8),
+        torch.tensor(val_anom_ams).to(device, dtype=torch.uint8)
+    ))
+
+    val_labels = torch.vstack((
+        torch.zeros((val_norm_iids.shape[0], 1), device=device, dtype=torch.uint8),
+        torch.ones((val_anom_iids.shape[0], 1), device=device, dtype=torch.uint8),
+    ))
+
+    train_dataset = TripletDataset(train_iids, train_ams, train_labels)
+    train_sampler = TripletBatchSampler(train_dataset, 128)
+    train_dataloader = DataLoader(train_dataset, batch_sampler=train_sampler)
+
+    val_dataset = TripletDataset(val_iids, val_ams, val_labels)
+    val_sampler = TripletBatchSampler(val_dataset, 128, deterministic=True)
+    val_dataloader = DataLoader(val_dataset, batch_sampler=val_sampler)
+
+    test_norm = (
+        torch.tensor(test_norm_iids).to(device, dtype=torch.int64),
+        torch.tensor(test_norm_ams).to(device, dtype=torch.uint8)
+    )
+
+    test_anom = (
+        torch.tensor(test_anom_iids).to(device, dtype=torch.int64),
+        torch.tensor(test_anom_ams).to(device, dtype=torch.uint8)
+    )
+
+    return (train_dataloader, val_dataloader, test_norm, test_anom)
 
 
 def _read_transform_al_bgl(bgl_path: Path) -> tuple[Dataset, torch.Tensor, torch.Tensor, torch.Tensor]:
