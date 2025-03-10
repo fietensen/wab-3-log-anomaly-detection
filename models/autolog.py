@@ -87,6 +87,9 @@ class AutoLogAutoencoder(nn.Module):
 
         with torch.no_grad():
             y,_ = self(x)
+            if y.device.type != "cpu":
+                y = y.cpu()
+                x = x.cpu()
             val_mse = np.mean(np.power(y.numpy() - x.numpy(), 2), axis=1)
             return val_mse>self.__threshold
 
@@ -97,9 +100,9 @@ class AutoLogAutoencoder(nn.Module):
 
         return reconstruction, l1_loss
 
-    def train_batch(self, epochs: int = 50):
+    def train_batch(self, epochs: int = 50, **kwargs):
         print("[INFO] Starting training for {} epochs".format(epochs))
-        optim = RMSprop(self.parameters())
+        optim = RMSprop(self.parameters(), lr=0.001)
         loss_fn = nn.MSELoss()
 
         train_batches = len(self.__datasets["train"])
@@ -121,10 +124,15 @@ class AutoLogAutoencoder(nn.Module):
             self.eval()
             with torch.no_grad():
                 y, l1_loss = self(self.__datasets["val"])
-                val_mse = np.mean(np.power(y.numpy() - self.__datasets["val"].numpy(), 2), axis=1)
+                val_mse = loss_fn(y, self.__datasets["val"]).mean().item()
                 self.__threshold = np.percentile(val_mse, 90)
                 
-                print(f"[INFO] Epoch {epoch+1}/{epochs} | Train Loss: {train_loss/train_batches:.4} | Val Loss: {val_mse.sum()/len(val_mse):.4} | Threshold: {self.__threshold:.4}")
+                if kwargs.get("log_train_loss") != None:
+                    kwargs.get("log_train_loss").append(train_loss/train_batches)
+                if kwargs.get("log_val_loss") != None:
+                    kwargs.get("log_val_loss").append(val_mse)
+
+                print(f"[INFO] Epoch {epoch+1}/{epochs} | Train Loss: {train_loss/train_batches:.4} | Val Loss: {val_mse:.4} | Threshold: {self.__threshold:.4}")
 
 
 if __name__ == '__main__':

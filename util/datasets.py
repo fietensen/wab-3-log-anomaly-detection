@@ -32,7 +32,7 @@ def read_datasets_make_dataloader(bgl_path: Path, hdfs_path: Path, *, bgl_batch_
     return {
         "autolog": {
             "bgl": {
-                "train": DataLoader(al_bgl_train, batch_size=bgl_batch_size, pin_memory=True),
+                "train": DataLoader(al_bgl_train, batch_size=bgl_batch_size, pin_memory=True, shuffle=True),
                 "val": al_bgl_val,
                 "test_normal": al_bgl_test_norm,
                 "test_anomalous": al_bgl_test_anom

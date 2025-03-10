@@ -4,7 +4,7 @@ from pathlib import Path
 
 import torch
 
-def train_cldtlog(datasets: dict, epochs: int = 50) -> CLDTLog:
+def train_cldtlog(datasets: dict, epochs: int = 50, **kwargs) -> CLDTLog:
     # experimentally determined parameters, not present in the CLDTLog paper
     tl_alpha = 2.0
     fl_gamma = 3.5
@@ -17,7 +17,7 @@ def train_cldtlog(datasets: dict, epochs: int = 50) -> CLDTLog:
     model = CLDTLog(bert, tl_alpha=tl_alpha, fl_gamma=fl_gamma).to(device)
 
     # Alpha of 0.2 was determined to be the best fit in the CLDTLog paper
-    model.train_batch(datasets, epochs=epochs, lr=learn_rate, alpha=0.2)
+    model.train_batch(datasets, epochs=epochs, lr=learn_rate, alpha=0.2, **kwargs)
 
     return model
 

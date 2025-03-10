@@ -39,7 +39,7 @@ class CLDTLog(nn.Module):
                 param.requires_grad = True
 
 
-    def train_batch(self, data: dict, epochs: int = 100, lr: float = 0.01, alpha: float = 0.2):
+    def train_batch(self, data: dict, epochs: int = 100, lr: float = 0.01, alpha: float = 0.2, **kwargs):
         optimizer = optim.SGD(self.parameters(), lr=lr, weight_decay=1e-4)
 
         n_batches = len(data["train"])
@@ -93,10 +93,16 @@ class CLDTLog(nn.Module):
                     val_loss_total += focal_loss.item()
                     val_loss_iters += 1
 
-            print("[INFO] Epoch {}/{} | Train Loss: {:.4f} | Val. Loss (TL): {:.4f} | Val. Loss (FL): {:.4f}".format(
+            if kwargs.get("log_train_loss") != None:
+                kwargs.get("log_train_loss").append(loss_total / loss_batches)
+            if kwargs.get("log_val_loss") != None:
+                kwargs.get("log_val_loss").append(alpha*(val_loss_trip / val_loss_iters) + (1-alpha) * (val_loss_total / val_loss_iters))
+
+            print("[INFO] Epoch {}/{} | Train Loss: {:.4f} | Val. Loss: {:.4f} | Val. Loss (TL): {:.4f} | Val. Loss (FL): {:.4f}".format(
                 epoch+1,
                 epochs,
                 loss_total / loss_batches if loss_batches else torch.nan,
+                alpha*(val_loss_trip / val_loss_iters) + (1-alpha) * (val_loss_total / val_loss_iters),
                 val_loss_trip / val_loss_iters,
                 val_loss_total / val_loss_iters
             ))

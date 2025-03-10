@@ -1,9 +1,9 @@
 from models.autolog import AutoLogAutoencoder
 from pathlib import Path
 
-def train_autolog(datasets: dict, epochs: int = 50) -> AutoLogAutoencoder:
+def train_autolog(datasets: dict, epochs: int = 50, **kwargs) -> AutoLogAutoencoder:
     model = AutoLogAutoencoder(67, datasets)
-    model.train_batch(epochs=epochs)
+    model.train_batch(epochs=epochs, **kwargs)
     return model
 
 if __name__ == '__main__':
