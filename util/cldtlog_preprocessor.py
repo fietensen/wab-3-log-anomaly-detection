@@ -7,6 +7,7 @@ import util.parse_util as pu
 import numpy as np
 import pandas as pd
 import h5py
+import random
 import datetime
 import re
 import os
@@ -161,8 +162,6 @@ def prepare_hdfs(hdfs_dataset_path: Path) -> None:
     return parsed
 """
 
-# TODO: remove import
-import random
 def prepare_bgl(bgl_dataset_path: Path, window_size: int = 5, window_step: int = 2) -> tuple[list[str], list[bool]]:
     bgl_log_file = bgl_dataset_path / "BGL.log"
     bgl_log_parsed = bgl_dataset_path / "BGL.prep.cldt.csv"

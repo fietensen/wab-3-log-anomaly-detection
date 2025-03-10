@@ -71,8 +71,7 @@ class _AutoLogDecoder(nn.Module):
 class AutoLogAutoencoder(nn.Module):
     def __init__(self, N: int, datasets: dict) -> None:
         super().__init__()
-        # TODO: Add seed option (for numpy / pytorch)
-
+        
         self.__encoder = _AutoLogEncoder(N)
         self.__decoder = _AutoLogDecoder(N)
         self.__datasets = datasets

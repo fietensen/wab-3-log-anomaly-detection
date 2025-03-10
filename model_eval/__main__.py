@@ -27,7 +27,7 @@ def get_metrics(model, dataset: dict) -> dict[str, float]:
 
     return {
         "f1": (2*TP)/(2*TP + FP + FN),
-        "precision": TP/(TP+FP) if TP+FP else 0, # TODO: Error, TP == FP == 0
+        "precision": TP/(TP+FP) if TP+FP else 0,
         "recall": TP/(TP+FN)
     }
 

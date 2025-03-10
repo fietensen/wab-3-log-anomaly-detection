@@ -91,7 +91,7 @@ def _process_hdfs_line(line: str) -> tuple[str]:
         proc[0], "%y%m%d %H%M%S"
     )
 
-    le = proc[2]# proc[1] + "-" + proc[2] # TODO: Should this use the PID?
+    le = proc[2]
     cont_parsed = pu.format_text(proc[3])
     blk_id = HDFS_BLK_RE.match(proc[3])
     if not blk_id:
