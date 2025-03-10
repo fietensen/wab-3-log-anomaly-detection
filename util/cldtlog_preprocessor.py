@@ -26,17 +26,6 @@ BGL_LINE_RE = re.compile(
     + r"(.*)$"       # 9 - Content
 )
 
-# Parses line from HDFS Logfile
-HDFS_LINE_RE = re.compile(
-    r"^(\d{6}\s\d{6})\s"  # Timestamp
-    + r"(\d+)\s"          # PID
-    + r"\w+\s([^:]+):\s"  # Component
-    + r"(.*)$"            # Log Message
-)
-
-# Matches first blk entry in logfile
-HDFS_BLK_RE = re.compile(r"^.*\s(blk_-?\d+)\s.*$")
-
 def _process_bgl_line(line: str) -> tuple[str]:
     proc = pu.process_line(
         line,
@@ -58,33 +47,6 @@ def _process_bgl_line(line: str) -> tuple[str]:
         time_parsed.timestamp(),
         cont_parsed,
         None
-    ])
-
-
-def _process_hdfs_line(line: str) -> tuple[str]:
-    proc = pu.process_line(
-        line,
-        HDFS_LINE_RE
-    )
-
-    if not proc:
-        return (None, None, None, None)
-    
-    blk_id = HDFS_BLK_RE.match(proc[3])
-    if not blk_id:
-        return (None, None, None, None)
-    
-    time_parsed = datetime.datetime.strptime(
-        proc[0], "%y%m%d %H%M%S"
-    )
-
-    cont_parsed = pu.format_text(proc[3], include_digits=False, to_lowercase=False)
-
-    return tuple([
-        False,
-        time_parsed.timestamp(),
-        cont_parsed,
-        blk_id
     ])
 
 
@@ -129,38 +91,6 @@ def _process_logfile(path: Path, line_processor: Callable, print_progress: bool 
 
     return df
 
-"""
-def _set_hdfs_labels(df: pd.DataFrame, label_file: Path) -> pd.DataFrame:
-    an = pd.read_csv(label_file).set_index("BlockId").to_dict()["Label"]
-    df["anomalous"] = df["ext"].map(lambda blk_id: an[blk_id] == "Anomaly")
-
-
-def prepare_hdfs(hdfs_dataset_path: Path) -> None:
-    hdfs_log_file = hdfs_dataset_path / "HDFS.log"
-    hdfs_label_file = hdfs_dataset_path / "preprocessed" / "anomaly_label.csv"
-    hdfs_log_parsed = hdfs_dataset_path / "HDFSL.prep.csv"
-
-    parsed = None
-
-    if os.path.isfile(hdfs_log_parsed):
-        print("[*] Loading cached preprocessed file from " + str(hdfs_log_parsed))
-        parsed = pd.read_csv(hdfs_log_parsed)
-        parsed.index.name = "index"
-
-    else:
-        parsed = _process_logfile(
-            hdfs_log_file,
-            line_processor=_process_hdfs_line,
-            print_progress=True
-        )
-        print("[INFO] Setting labels")
-        _set_hdfs_labels(parsed, hdfs_label_file)
-        print("[INFO] Caching progress to " + str(hdfs_log_parsed))
-        del parsed["ext"]
-        parsed.to_csv(hdfs_log_parsed, index=False)
-
-    return parsed
-"""
 
 def prepare_bgl(bgl_dataset_path: Path, window_size: int = 5, window_step: int = 2) -> tuple[list[str], list[bool]]:
     bgl_log_file = bgl_dataset_path / "BGL.log"

@@ -174,11 +174,9 @@ if __name__ == '__main__':
     cuda = torch.device("cuda")
 
     bgl_path = Path(r".\datasets\BGL")
-    hdfs_path = Path(r".\datasets\HDFS_v1")
 
     datasets = read_datasets_make_dataloader(
         bgl_path=bgl_path,
-        hdfs_path=hdfs_path,
         bgl_batch_size=2048
     )
 

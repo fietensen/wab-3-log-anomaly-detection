@@ -73,11 +73,6 @@ def main():
     bglp = Path(r".\datasets\BGL")
     bglprpal = bglp / "preprocessed.al.csv"
     bglprpcldt = bglp / "preprocessed.cldt.h5"
-
-    hdfsp = Path(r".\datasets\HDFS_v1")
-    hdfsprpal = hdfsp / "preprocessed.al.csv"
-    hdfsprpcldt = hdfsp / "preprocessed.cldt.h5"
-
     tokenizer_path = Path(r".\bert_base_uncased_hf_tokenizer")
 
     # AutoLog Preprocessing
@@ -87,20 +82,10 @@ def main():
     al_bgl_proc.to_csv(bglprpal, index=False)
 
 
-    print("[INFO] Preparing and Preprocessing HDFS Dataset for AutoLog")
-    al_hdfs_proc = preprocess_autolog(al_prep.prepare_hdfs(hdfsp), time_interval=10)
-    print("[INFO] Storing preprocessed Dataframe at " + str(hdfsprpal))
-    al_hdfs_proc.to_csv(hdfsprpal, index=False)
-
     # CLDTLog Preprocessing
     print("[INFO] Preparing and Preprocessing BG/L Dataset for CLDTLog")
     preprocess_cldtlog(*cldt_prep.prepare_bgl(bglp), tokenizer_path, bglprpcldt)
     print("[INFO] Storing preprocessed Dataset at " + str(bglprpcldt))
-
-    #print("[INFO] Preparing and Preprocessing BG/L Dataset for CLDTLog")
-    #print("[INFO] Storing preprocessed Dataframe at " + str(bglprpcldt))
-
-
 
 if __name__ == '__main__':
     main()
