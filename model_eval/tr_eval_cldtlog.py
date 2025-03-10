@@ -8,7 +8,7 @@ def train_cldtlog(datasets: dict, epochs: int = 50) -> CLDTLog:
     # experimentally determined parameters, not present in the CLDTLog paper
     tl_alpha = 2.0
     fl_gamma = 3.5
-    learn_rate = 0.001
+    learn_rate = 0.01
     
     # move dataset onto gpu if possible for faster training
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

@@ -176,3 +176,4 @@ _*.*
 bert_base_uncased_hf_model
 bert_base_uncased_hf_tokenizer
 !__main__.py
+mdl_tmp

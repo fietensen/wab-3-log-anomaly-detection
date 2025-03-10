@@ -62,11 +62,11 @@ def _read_transform_cldt_bgl(bgl_path: Path, device: torch.device = torch.device
     bgl_dataset_preprocessed = bgl_path / "preprocessed.cldt.h5"
 
     with h5py.File(bgl_dataset_preprocessed, "r") as fp:
-        norm_iids = np.array(fp["data"]["normative"]["input_ids"][:1450], dtype=np.uint16)
-        norm_ams = np.array(fp["data"]["normative"]["attention_mask"][:1450], dtype=np.uint8)
+        norm_iids = np.array(fp["data"]["normative"]["input_ids"][:30355], dtype=np.uint16)
+        norm_ams = np.array(fp["data"]["normative"]["attention_mask"][:30355], dtype=np.uint8)
 
-        anom_iids = np.array(fp["data"]["anomalous"]["input_ids"][:1450], dtype=np.uint16)
-        anom_ams = np.array(fp["data"]["anomalous"]["attention_mask"][:1450], dtype=np.uint8)
+        anom_iids = np.array(fp["data"]["anomalous"]["input_ids"][:2640], dtype=np.uint16)
+        anom_ams = np.array(fp["data"]["anomalous"]["attention_mask"][:2640], dtype=np.uint8)
 
     # Distribution: Train: 60% | Val: 20% | Test: 20%
     tsplit_norm_iids, test_norm_iids, tsplit_norm_ams, test_norm_ams = train_test_split(norm_iids, norm_ams, test_size=0.2)
@@ -106,11 +106,11 @@ def _read_transform_cldt_bgl(bgl_path: Path, device: torch.device = torch.device
     ))
 
     train_dataset = TripletDataset(train_iids, train_ams, train_labels)
-    train_sampler = TripletBatchSampler(train_dataset, 128)
+    train_sampler = TripletBatchSampler(train_dataset, 64, anom_ratio=0.08)
     train_dataloader = DataLoader(train_dataset, batch_sampler=train_sampler)
 
     val_dataset = TripletDataset(val_iids, val_ams, val_labels)
-    val_sampler = TripletBatchSampler(val_dataset, 128, deterministic=True)
+    val_sampler = TripletBatchSampler(val_dataset, 64, deterministic=True, anom_ratio=0.08)
     val_dataloader = DataLoader(val_dataset, batch_sampler=val_sampler)
 
     test_norm = (

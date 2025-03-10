@@ -40,7 +40,7 @@ class CLDTLog(nn.Module):
 
 
     def train_batch(self, data: dict, epochs: int = 100, lr: float = 0.01, alpha: float = 0.2):
-        optimizer = optim.Adam(self.parameters(), lr = lr)
+        optimizer = optim.SGD(self.parameters(), lr=lr, weight_decay=1e-4)
 
         n_batches = len(data["train"])
 
