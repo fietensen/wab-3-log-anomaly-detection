@@ -52,17 +52,17 @@ def _read_transform_cldt_bgl(bgl_path: Path, device: torch.device = torch.device
     bgl_dataset_preprocessed = bgl_path / "preprocessed.cldt.h5"
 
     with h5py.File(bgl_dataset_preprocessed, "r") as fp:
-        norm_iids = np.array(fp["data"]["normative"]["input_ids"][:30355], dtype=np.uint16)
-        norm_ams = np.array(fp["data"]["normative"]["attention_mask"][:30355], dtype=np.uint8)
+        norm_iids = np.array(fp["data"]["normative"]["input_ids"][:30355*16], dtype=np.uint16)
+        norm_ams = np.array(fp["data"]["normative"]["attention_mask"][:30355*16], dtype=np.uint8)
 
-        anom_iids = np.array(fp["data"]["anomalous"]["input_ids"][:2640], dtype=np.uint16)
-        anom_ams = np.array(fp["data"]["anomalous"]["attention_mask"][:2640], dtype=np.uint8)
+        anom_iids = np.array(fp["data"]["anomalous"]["input_ids"][:2640*16], dtype=np.uint16)
+        anom_ams = np.array(fp["data"]["anomalous"]["attention_mask"][:2640*16], dtype=np.uint8)
 
     # Distribution: Train: 60% | Val: 20% | Test: 20%
-    tsplit_norm_iids, test_norm_iids, tsplit_norm_ams, test_norm_ams = train_test_split(norm_iids, norm_ams, test_size=0.2)
+    tsplit_norm_iids, test_norm_iids, tsplit_norm_ams, test_norm_ams = train_test_split(norm_iids, norm_ams, test_size=0.94)
     train_norm_iids, val_norm_iids, train_norm_ams, val_norm_ams = train_test_split(tsplit_norm_iids, tsplit_norm_ams, test_size=0.25)
 
-    tsplit_anom_iids, test_anom_iids, tsplit_anom_ams, test_anom_ams = train_test_split(anom_iids, anom_ams, test_size=0.2)
+    tsplit_anom_iids, test_anom_iids, tsplit_anom_ams, test_anom_ams = train_test_split(anom_iids, anom_ams, test_size=0.94)
     train_anom_iids, val_anom_iids, train_anom_ams, val_anom_ams = train_test_split(tsplit_anom_iids, tsplit_anom_ams, test_size=0.25)
 
     train_iids = torch.vstack((

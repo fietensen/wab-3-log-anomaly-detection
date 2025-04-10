@@ -48,7 +48,7 @@ class _AutoLogDecoder(nn.Module):
     def __init__(self, N: int) -> None:
         super().__init__()
 
-        self._l1_lambda = 10e-5
+        self._l1_lambda = 10e-8
 
         self.fc1 = nn.Linear(64, 128)
         self.act1 = nn.ReLU()
@@ -113,14 +113,15 @@ class AutoLogAutoencoder(nn.Module):
 
             for (batch_x,) in self.__datasets["train"]:
                 y, l1_loss = self(batch_x)
-                loss = loss_fn(y, batch_x) + l1_loss
+                loss_re = loss_fn(y, batch_x)
+                loss = loss_re + l1_loss
 
                 optim.zero_grad()
                 loss.backward()
                 optim.step()
 
-                train_loss += loss.mean().item()
-        
+                train_loss += loss_re.mean().item()
+            
             self.eval()
             with torch.no_grad():
                 y, l1_loss = self(self.__datasets["val"])

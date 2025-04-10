@@ -42,7 +42,7 @@ def get_metrics(model, dataset: dict, chunked_evaluation_fn: Callable | None = N
         "Recall": TP/(TP+FN)
     }
 
-def chunked_cldtlog_evaluate(model, dataset, batch_size: int = 1_000, **kwargs) -> np.array:
+def chunked_cldtlog_evaluate(model, dataset, batch_size: int = 100, **kwargs) -> np.array:
     input_ids, input_ams = dataset
     results = np.zeros((len(input_ids), 1), dtype=np.float16)
     for i in tqdm(range(0, len(input_ids), batch_size)):
@@ -184,7 +184,6 @@ if __name__ == '__main__':
     al_logging_entities = ["R00", "R01", "R02", "R03", "R04", "R05", "R06", "R10", "R11"]
     al_scores_df = pd.read_csv(bgl_path / "preprocessed.al.csv")
     plot_al_kde(al_scores_df, al_logging_entities, outname=r".\figures\autolog_scores_kde.png")
-
 
     al_bgl_training = {"train_loss": [], "val_loss": []}
     al_bgl_classifier = train_autolog(
