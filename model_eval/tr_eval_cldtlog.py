@@ -17,7 +17,6 @@ def train_cldtlog(datasets: dict, epochs: int = 50, **kwargs) -> CLDTLog:
 
     # Alpha of 0.2 was determined to be the best fit in the CLDTLog paper
     model.train_batch(datasets, epochs=epochs, lr=learn_rate, alpha=0.2, **kwargs)
-    #model.load_state_dict(torch.load("mdl_tmp\\cldtlog_10.mdl"))
 
     return model
 

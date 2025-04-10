@@ -98,7 +98,6 @@ class CLDTLog(nn.Module):
             if kwargs.get("log_val_loss") != None:
                 kwargs.get("log_val_loss").append(alpha*(val_loss_trip / val_loss_iters) + (1-alpha) * (val_loss_total / val_loss_iters))
 
-            torch.save(self.state_dict(), "mdl_tmp/cldtlog_{}.mdl".format(epoch+1))
             print("[INFO] Epoch {}/{} | Train Loss: {:.4f} | Val. Loss: {:.4f} | Val. Loss (TL): {:.4f} | Val. Loss (FL): {:.4f}".format(
                 epoch+1,
                 epochs,
